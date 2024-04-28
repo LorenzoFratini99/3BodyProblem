@@ -40,7 +40,7 @@ def calculate_accelerations(positions, masses, G = 6.67430e-11):
 
     return accelerations
 
-def rk4_v_step(positions, velocities, masses, dt, num_bodies):
+def rk4_step(positions, velocities, masses, dt, num_bodies):
     """
     Perform a single step of the Rk4_v integration method.
 
@@ -57,36 +57,35 @@ def rk4_v_step(positions, velocities, masses, dt, num_bodies):
     new_positions = []
     new_velocities = []
 
-    k1_v = calculate_accelerations(positions, masses)
-    k1_a = calculate_accelerations(velocities, masses)
+    # K1
+    k1_v = velocities
+    k1_a = calculate_accelerations(positions, masses)
 
-    k2_v_compute = []
+    # K2
+    k2_v = []
     k2_a_compute = []
     for i in range(num_bodies):
-        k2_v_compute.append(positions[i] + dt/2 * k1_v[i])
-        k2_a_compute.append(velocities[i] + dt/2 * k1_a[i])
-    k2_v = calculate_accelerations(k2_v_compute, masses)
+        k2_v.append(velocities[i] + dt/2 * k1_v[i])
+        k2_a_compute.append(positions[i] + dt/2 * k1_a[i])
     k2_a = calculate_accelerations(k2_a_compute, masses)
 
-    k3_v_compute = []
+    k3_v = []
     k3_a_compute = []
     for i in range(num_bodies): 
-        k3_v_compute.append(positions[i] + dt/2 * k2_v[i])
-        k3_a_compute.append(velocities[i] + dt/2 * k2_a[i])
-    k3_v = calculate_accelerations(k3_v_compute, masses)
+        k3_v.append(velocities[i] + dt/2 * k2_v[i])
+        k3_a_compute.append(positions[i] + dt/2 * k2_a[i])
     k3_a = calculate_accelerations(k3_a_compute, masses)
     
-    k4_v_compute = []
+    k4_v = []
     k4_a_compute = []
     for i in range(num_bodies): 
-        k4_v_compute.append(positions[i] + dt * k3_v[i])
-        k4_a_compute.append(velocities[i] + dt * k3_a[i])
-    k4_v = calculate_accelerations(k4_v_compute, masses)
+        k4_v.append(velocities[i] + dt * k3_v[i])
+        k4_a_compute.append(positions[i] + dt * k3_a[i])
     k4_a = calculate_accelerations(k4_a_compute, masses)
 
     for i in range(num_bodies):
-        new_position = positions[i] + dt/6 * (k1_v[i] + 2*k2_v[i] + 2*k3_v[i] + k4_v[i])
-        new_velocity = velocities[i] + dt/6 * (k2_a[i] + 2*k2_a[i] + 2*k3_a[i] + k4_a[i])
+        new_position = positions[i] + dt/6.0 * (k1_v[i] + 2*k2_v[i] + 2*k3_v[i] + k4_v[i])
+        new_velocity = velocities[i] + dt/6.0 * (k2_a[i] + 2*k2_a[i] + 2*k3_a[i] + k4_a[i])
 
         new_positions.append(new_position)
         new_velocities.append(new_velocity)
@@ -138,11 +137,11 @@ def simulate(initialPos, initialVel, masses, time_factor = 10, Rk4_v=False):
 
     if Rk4_v:
         while True:
-            new_positions, new_velocities = rk4_v_step(positions, velocities, masses, dt, num_bodies)
+            new_positions, new_velocities = rk4_step(positions, velocities, masses, dt, num_bodies)
             positions = new_positions
             velocities = new_velocities
 
-            print(new_positions)
+            print(new_velocities)
 
 
             # update plot
@@ -167,7 +166,7 @@ def simulate(initialPos, initialVel, masses, time_factor = 10, Rk4_v=False):
 
     # def update(frame):
     #     nonlocal positions, velocities
-    #     positions, velocities = rk4_v_step(positions, velocities, masses, dt)
+    #     positions, velocities = rk4_step(positions, velocities, masses, dt)
     #     for i, line in enumerate(lines):
     #         line.set_data(positions[i, 0], positions[i, 1])
     #     return lines
@@ -207,9 +206,9 @@ def main(isSolarSystem = True):
     else:
         print("Fake execution")
         initialPos = [np.zeros(2), np.array([10.0, 0.0])]
-        initialVel = [np.zeros(2), np.array([0.0, 0.1])]
+        initialVel = [np.zeros(2), np.array([0.0, 0.01])]
         masses = [100000000.0, 1.0]
-        simulate(initialPos, initialVel, masses, 100, False)
+        simulate(initialPos, initialVel, masses, 100, True)
 
 if __name__=="__main__":
     main(False)
