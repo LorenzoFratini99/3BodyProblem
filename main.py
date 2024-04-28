@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 #from   matplotlib.animation import FuncAnimation
 import time
 
+# TODO: implement a stable solution of the 3 body problem
+# TODO: increase the simulation speed (with respect to real time)
+# TODO: improve the visual quality of the simulation
+
 def calculate_accelerations(positions, masses, G = 6.67430e-11):
     """
     Calculate the acceleration experienced by each body due to the gravitational forces
@@ -121,9 +125,21 @@ def fw_euler(positions, velocities, masses, dt, num_bodies):
 
     return new_positions, new_velocities
 
+def get_planet_sizes(masses, scale_factor=1):
+    sizes = []
+    # radius will be proportional to the cube root of mass
+    for mass in masses:
+        radius = mass**(1/3)
 
-def simulate(initialPos, initialVel, masses, time_factor = 10, Rk4_v=False):
-    dt = 1e-1  # Time step in seconds
+        if(scale_factor != 1):
+            radius *= scale_factor
+
+        sizes.append(radius)
+
+    return sizes
+
+def simulate(initialPos, initialVel, masses, radii, time_factor = 10, Rk4_v=False):
+    dt = 1  # Time step in seconds
     num_bodies = len(initialPos)
 
     # computing the rate at which the simulation must run (time_factor 1 => "real time")
@@ -134,6 +150,28 @@ def simulate(initialPos, initialVel, masses, time_factor = 10, Rk4_v=False):
     velocities = initialVel
 
     # initial plot
+    fig, ax = plt.subplots()
+    ax.set_facecolor('black')
+    ax.set_aspect('equal')
+    ax.grid(True, color='gray')
+    initPosNumPy = np.array(initialPos)
+    ax_lim = np.max(np.abs(initPosNumPy)) * 2
+    ax.set_xlim(-ax_lim, ax_lim)
+    ax.set_ylim(-ax_lim, ax_lim)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+
+    planet_sizes = radii
+    # planet_sizes = [1e10, 1e10, 1e10]
+    # planet_colours = 
+    circles = []
+
+    for i in range(num_bodies):
+        circle = plt.Circle((initialPos[i][0], initialPos[i][1]), planet_sizes[i])
+        ax.add_artist(circle)
+        circles.append(circle)
+
+    plt.show(block=False)
 
     if Rk4_v:
         while True:
@@ -141,11 +179,11 @@ def simulate(initialPos, initialVel, masses, time_factor = 10, Rk4_v=False):
             positions = new_positions
             velocities = new_velocities
 
-            print(new_velocities)
+            for i in range(num_bodies):
+                circles[i].center = (positions[i][0], positions[i][1])
 
-
-            # update plot
-
+            plt.draw()
+            plt.pause(sleep_time)
             time.sleep(sleep_time)
     else: 
         while True:
@@ -157,29 +195,16 @@ def simulate(initialPos, initialVel, masses, time_factor = 10, Rk4_v=False):
             positions = new_positions
             velocities = new_velocities
 
+            for i in range(num_bodies):
+                circles[i].center = (positions[i][0], positions[i][1])
 
+            plt.draw()
+            plt.pause(sleep_time)
             time.sleep(sleep_time)
 
-    # fig, ax = plt.subplots()
-    # lines = [ax.plot([], [], label=f'Body {i+1}')[0] for i in range(num_bodies)]
-    # scatter_points = ax.scatter(initialPos[:, 0], initialPos[:, 1], s=200, color='black')
+def main(isSolarSystem = 1):
 
-    # def update(frame):
-    #     nonlocal positions, velocities
-    #     positions, velocities = rk4_step(positions, velocities, masses, dt)
-    #     for i, line in enumerate(lines):
-    #         line.set_data(positions[i, 0], positions[i, 1])
-    #     return lines
-
-    # #ani = FuncAnimation(fig, update, frames=None, blit=True, interval=50, repeat=False)
-    # ax.legend()
-    # ax.set_xlim(-2e11, 2e11)  # Adjust these limits based on your simulation scale
-    # ax.set_ylim(-2e11, 2e11)  # Adjust these limits based on your simulation scale
-    # plt.show()
-
-def main(isSolarSystem = True):
-
-    if isSolarSystem:
+    if isSolarSystem == 1:
         print("Sun, Earth, Moon")
         # Relevant Distances
         distanceMoonEarth = 384400000.0    #[m]
@@ -199,16 +224,26 @@ def main(isSolarSystem = True):
 
         # Masses
         masses = [1.9891e30, 5,972e24, 7.34767309e22] # sun, earth, moon
+        radii = [696340000, 6371000, 1737400]
         
         # Simulation Start
-        simulate(initialPos, initialVel, masses)
+        simulate(initialPos, initialVel, masses, radii)
+
+    elif isSolarSystem == 3:
+        print("Fake execution 3")
+        initialPos = [np.array([-10.0, -5.0]), np.array([10.0, 5.0]), np.array([0.0, 0.0])]
+        initialVel = [np.array([0.01, -0.01]), np.array([0.00, -0.00]), np.array([-0.01, 0.0])]
+        masses = [1e5, 1e5, 1e5]
+        radii = [1.0, 1.0, 1.0]
+        simulate(initialPos, initialVel, masses, radii, 10000, False)
 
     else:
         print("Fake execution")
         initialPos = [np.zeros(2), np.array([10.0, 0.0])]
         initialVel = [np.zeros(2), np.array([0.0, 0.01])]
-        masses = [100000000.0, 1.0]
-        simulate(initialPos, initialVel, masses, 100, True)
+        masses = [100000.0, 1.0]
+        radii = [5.0, 0.5]
+        simulate(initialPos, initialVel, masses, radii, 10, True)
 
 if __name__=="__main__":
-    main(False)
+    main(3)
