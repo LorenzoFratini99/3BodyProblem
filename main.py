@@ -6,7 +6,9 @@ import time
 # TODO: implement a stable solution of the 3 body problem
 # TODO: increase the simulation speed (with respect to real time)
 # TODO: improve the visual quality of the simulation
+# TODO: rewrite in OOP (each body has mass, position, velocity, ...)
 
+# Newtonian Gravitation
 def calculate_accelerations(positions, masses, G = 6.67430e-11):
     """
     Calculate the acceleration experienced by each body due to the gravitational forces
@@ -44,6 +46,11 @@ def calculate_accelerations(positions, masses, G = 6.67430e-11):
 
     return accelerations
 
+#####################################################
+#################### Integrators ####################
+#####################################################
+
+# Runge-Kutta 4
 def rk4_step(positions, velocities, masses, dt, num_bodies):
     """
     Perform a single step of the Rk4_v integration method.
@@ -73,6 +80,7 @@ def rk4_step(positions, velocities, masses, dt, num_bodies):
         k2_a_compute.append(positions[i] + dt/2 * k1_a[i])
     k2_a = calculate_accelerations(k2_a_compute, masses)
 
+    # K3
     k3_v = []
     k3_a_compute = []
     for i in range(num_bodies): 
@@ -80,6 +88,7 @@ def rk4_step(positions, velocities, masses, dt, num_bodies):
         k3_a_compute.append(positions[i] + dt/2 * k2_a[i])
     k3_a = calculate_accelerations(k3_a_compute, masses)
     
+    # K4
     k4_v = []
     k4_a_compute = []
     for i in range(num_bodies): 
@@ -87,6 +96,7 @@ def rk4_step(positions, velocities, masses, dt, num_bodies):
         k4_a_compute.append(positions[i] + dt * k3_a[i])
     k4_a = calculate_accelerations(k4_a_compute, masses)
 
+    # Integration
     for i in range(num_bodies):
         new_position = positions[i] + dt/6.0 * (k1_v[i] + 2*k2_v[i] + 2*k3_v[i] + k4_v[i])
         new_velocity = velocities[i] + dt/6.0 * (k2_a[i] + 2*k2_a[i] + 2*k3_a[i] + k4_a[i])
@@ -96,6 +106,7 @@ def rk4_step(positions, velocities, masses, dt, num_bodies):
 
     return new_positions, new_velocities
 
+# Forward Euler
 def fw_euler(positions, velocities, masses, dt, num_bodies):
     """
     Perform a single step of the Forward Euler integration method.
@@ -116,6 +127,7 @@ def fw_euler(positions, velocities, masses, dt, num_bodies):
 
     accelerations = calculate_accelerations(positions, masses)
 
+    # Integration
     for i in range(num_bodies):
         new_position = positions[i]  + dt * velocities[i]
         new_velocity = velocities[i] + dt * accelerations[i]
@@ -124,6 +136,10 @@ def fw_euler(positions, velocities, masses, dt, num_bodies):
         new_velocities.append(new_velocity)
 
     return new_positions, new_velocities
+
+#####################################################
+#################### Aesthetics #####################
+#####################################################
 
 def get_planet_sizes(masses, scale_factor=1):
     sizes = []
@@ -138,42 +154,65 @@ def get_planet_sizes(masses, scale_factor=1):
 
     return sizes
 
-def simulate(initialPos, initialVel, masses, radii, time_factor = 10, Rk4_v=False):
-    dt = 1  # Time step in seconds
+def get_axes_limits(initPos):
+    lim = 0
+    for pos in initPos:
+        for coordinate in pos:
+            if abs(coordinate) > lim:
+                lim = coordinate
+    
+    return lim * 2
+
+#####################################################
+#################### SIMULATION #####################
+#####################################################
+
+def simulate(initialPos, initialVel, masses, graphic_radii, real_radii, time_factor = 10, RK4 = False):
+    """
+    Perform the simulation of an n-body system, under newtonian gravity
+
+    Parameters:
+        initialPos (list of numpy arrays): List of position vectors of each body.
+        initialVel (list of numpy arrays): List of velocity vectors of each body.
+        masses (list of floats): List of masses of each body.
+        graphic_radii (list of floats): Figure radius of each body.
+        real_radii (list of floats): Real radius of each body (for collisions)
+        time_factor (float): ratio between real time and sim time (10: sim runs 10x faster than real time)
+        RK4 (bool): set the integrator: true -> RK4 is selected
+    """
+
+    # Defining Simulation Parameters
+    dt = 1  # Sim Time step in seconds
     num_bodies = len(initialPos)
 
-    # computing the rate at which the simulation must run (time_factor 1 => "real time")
+    # Rate at which the simulation must run (time_factor 1 => "real time")
     sleep_time = dt / time_factor 
 
-    # creating the necessary data for the simulation
+    # Initial Conditions
     positions = initialPos
     velocities = initialVel
 
-    # initial plot
+    # Creating the plot
     fig, ax = plt.subplots()
     ax.set_facecolor('black')
     ax.set_aspect('equal')
     ax.grid(True, color='gray')
-    initPosNumPy = np.array(initialPos)
-    ax_lim = np.max(np.abs(initPosNumPy)) * 2
+    ax_lim = get_axes_limits(initialPos)
     ax.set_xlim(-ax_lim, ax_lim)
     ax.set_ylim(-ax_lim, ax_lim)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
 
-    planet_sizes = radii
-    # planet_sizes = [1e10, 1e10, 1e10]
-    # planet_colours = 
     circles = []
 
     for i in range(num_bodies):
-        circle = plt.Circle((initialPos[i][0], initialPos[i][1]), planet_sizes[i])
+        circle = plt.Circle((initialPos[i][0], initialPos[i][1]), graphic_radii[i])
         ax.add_artist(circle)
         circles.append(circle)
 
     plt.show(block=False)
 
-    if Rk4_v:
+    if RK4:
         while True:
             new_positions, new_velocities = rk4_step(positions, velocities, masses, dt, num_bodies)
             positions = new_positions
@@ -181,6 +220,11 @@ def simulate(initialPos, initialVel, masses, radii, time_factor = 10, Rk4_v=Fals
 
             for i in range(num_bodies):
                 circles[i].center = (positions[i][0], positions[i][1])
+                for j in range(num_bodies):
+                    if i != j and np.linalg.norm(positions[i] - positions[j]) < (real_radii[i] + real_radii[j]):
+                        print(f"COLLISION DETECTED between body {i} and body {j}")
+                        print("Exiting program...")
+                        return
 
             plt.draw()
             plt.pause(sleep_time)
@@ -189,11 +233,10 @@ def simulate(initialPos, initialVel, masses, radii, time_factor = 10, Rk4_v=Fals
         while True:
             new_positions, new_velocities = fw_euler(positions, velocities, masses, dt, num_bodies)
             
-            # update plot
-            print(new_positions)
-
             positions = new_positions
             velocities = new_velocities
+
+            print(positions)
 
             for i in range(num_bodies):
                 circles[i].center = (positions[i][0], positions[i][1])
@@ -224,26 +267,32 @@ def main(isSolarSystem = 1):
 
         # Masses
         masses = [1.9891e30, 5,972e24, 7.34767309e22] # sun, earth, moon
-        radii = [696340000, 6371000, 1737400]
+        graphic_radii = [696340000, 6371000, 1737400]
+        
+        real_radii = []
+        for i in range(graphic_radii):
+            real_radii.append(graphic_radii[i]*1e2)
         
         # Simulation Start
-        simulate(initialPos, initialVel, masses, radii)
+        simulate(initialPos, initialVel, masses, graphic_radii)
 
     elif isSolarSystem == 3:
-        print("Fake execution 3")
+        print("Generic 3Body System")
         initialPos = [np.array([-10.0, -5.0]), np.array([10.0, 5.0]), np.array([0.0, 0.0])]
         initialVel = [np.array([0.01, -0.01]), np.array([0.00, -0.00]), np.array([-0.01, 0.0])]
         masses = [1e5, 1e5, 1e5]
-        radii = [1.0, 1.0, 1.0]
-        simulate(initialPos, initialVel, masses, radii, 10000, False)
+        graphic_radii = [1.0, 1.0, 1.0]
+        simulate(initialPos, initialVel, masses, graphic_radii, graphic_radii, 1000000, False)
+
+    elif isSolarSystem == 5:
+        print("Stable Solution")
 
     else:
-        print("Fake execution")
         initialPos = [np.zeros(2), np.array([10.0, 0.0])]
         initialVel = [np.zeros(2), np.array([0.0, 0.01])]
         masses = [100000.0, 1.0]
-        radii = [5.0, 0.5]
-        simulate(initialPos, initialVel, masses, radii, 10, True)
+        graphic_radii = [5.0, 0.5]
+        simulate(initialPos, initialVel, masses, graphic_radii, 10, True)
 
 if __name__=="__main__":
     main(3)
